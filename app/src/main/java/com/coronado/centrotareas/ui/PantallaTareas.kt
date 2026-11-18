@@ -59,6 +59,7 @@ fun PantallaTareas(vm: TareasViewModel) {
     var texto by rememberSaveable { mutableStateOf(N_POR_DEFECTO) }
     var ultimoN by rememberSaveable { mutableIntStateOf(0) }
     val carga by vm.carga.collectAsState()
+    val simularError by vm.simularError.collectAsState()
     Scaffold(topBar = { Barra() }) { padding ->
         Column(
             modifier = Modifier
@@ -121,6 +122,10 @@ fun PantallaTareas(vm: TareasViewModel) {
             }
             Tarjeta("Dos cargas") {
                 val cargando = carga is CargaUi.Cargando
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Switch(checked = simularError, onCheckedChange = { vm.cambiarSimularError(it) })
+                    Text("Simular error")
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { vm.cargarUnaPorUna() }, enabled = !cargando) { Text("Una por una") }
                     Button(onClick = { vm.cargarALaVez() }, enabled = !cargando) { Text("A la vez") }
@@ -137,7 +142,13 @@ fun PantallaTareas(vm: TareasViewModel) {
                         }
                         Aviso("«Una por una» tarda ≈ 5000 ms")
                     }
-                    is CargaUi.Error -> {}
+                    is CargaUi.Error -> {
+                        Recuadro(
+                            MaterialTheme.colorScheme.errorContainer,
+                            MaterialTheme.colorScheme.onErrorContainer
+                        ) { Text(e.mensaje) }
+                        OutlinedButton(onClick = { vm.cargarALaVez() }) { Text("Reintentar") }
+                    }
                 }
             }
         }
