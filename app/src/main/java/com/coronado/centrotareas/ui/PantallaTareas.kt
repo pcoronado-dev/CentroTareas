@@ -3,6 +3,7 @@ package com.coronado.centrotareas.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -64,20 +65,13 @@ fun PantallaTareas(vm: TareasViewModel) {
         ) {
             Tarjeta("Tarea larga") {
                 Button(onClick = { toques++ }) { Text("Tócame: $toques") }
-                Button(onClick = { vm.tareaLargaMala() }) { Text("Tarea larga (MAL)") }
+                Button(onClick = { vm.tareaLarga() }) { Text("Tarea larga") }
                 Text(mensaje)
             }
-            Recuadro(
-                fondo = MaterialTheme.colorScheme.errorContainer,
-                contenido = MaterialTheme.colorScheme.error,
-                borde = MaterialTheme.colorScheme.error
-            ) {
-                Text(
-                    "Lo que observas: durante 4 segundos nada responde y el texto «Trabajando...» no aparece",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
+            if (mensaje == "Trabajando...") {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Aviso("Los toques siguen sumando mientras trabaja")
+                }
             }
         }
     }

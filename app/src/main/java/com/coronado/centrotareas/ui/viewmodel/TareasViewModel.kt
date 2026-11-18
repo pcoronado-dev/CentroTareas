@@ -24,11 +24,18 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
     private val _mensaje = MutableStateFlow("Listo")
     val mensaje: StateFlow<String> = _mensaje.asStateFlow()
 
-    // Paso 1: MAL a propósito. Bloquea el hilo principal 4 segundos.
-    fun tareaLargaMala() {
-        _mensaje.value = "Trabajando..."
-        Thread.sleep(4000)
-        _mensaje.value = "Terminó"
+    // Paso 2: reemplaza a tareaLargaMala(). La espera ocurre en segundo plano.
+    fun tareaLarga() {
+        viewModelScope.launch {
+            _mensaje.value = "Trabajando..."
+            Log.d("HILO", "Antes: ${Thread.currentThread().name}")
+            withContext(Dispatchers.Default) {
+                Log.d("HILO", "Dentro: ${Thread.currentThread().name}")
+                delay(4000)
+            }
+            Log.d("HILO", "Despues: ${Thread.currentThread().name}")
+            _mensaje.value = "Terminó"
+        }
     }
 
     // ----- Contar primos (paso 5)
