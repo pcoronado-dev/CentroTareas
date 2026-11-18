@@ -28,21 +28,38 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
     private val _progreso = MutableStateFlow(0f)
     val progreso: StateFlow<Float> = _progreso.asStateFlow()
 
+    // Paso 4: el Job permite cancelar; "corriendo" evita dos tareas a la vez.
+    private var trabajo: Job? = null
+    private val _corriendo = MutableStateFlow(false)
+    val corriendo: StateFlow<Boolean> = _corriendo.asStateFlow()
+
     fun tareaLarga() {
-        viewModelScope.launch {
-            _progreso.value = 0f
-            _mensaje.value = "Trabajando..."
-            Log.d("HILO", "Antes: ${Thread.currentThread().name}")
-            for (i in 1..100) {
-                withContext(Dispatchers.Default) {
-                    if (i == 1) Log.d("HILO", "Dentro: ${Thread.currentThread().name}")
-                    delay(40)
+        if (_corriendo.value) return // doble inicio: no hace nada
+        _corriendo.value = true
+        trabajo = viewModelScope.launch {
+            try {
+                _progreso.value = 0f
+                _mensaje.value = "Trabajando..."
+                Log.d("HILO", "Antes: ${Thread.currentThread().name}")
+                for (i in 1..100) {
+                    withContext(Dispatchers.Default) {
+                        if (i == 1) Log.d("HILO", "Dentro: ${Thread.currentThread().name}")
+                        delay(40) // delay revisa la cancelación
+                    }
+                    _progreso.value = i / 100f
                 }
-                _progreso.value = i / 100f
+                Log.d("HILO", "Despues: ${Thread.currentThread().name}")
+                _mensaje.value = "Terminó"
+            } finally {
+                _corriendo.value = false // termine bien o cancelada
             }
-            Log.d("HILO", "Despues: ${Thread.currentThread().name}")
-            _mensaje.value = "Terminó"
         }
+    }
+
+    fun cancelar() {
+        if (!_corriendo.value) return
+        trabajo?.cancel()
+        _mensaje.value = "Cancelado" // la barra se queda donde estaba
     }
 
     // ----- Contar primos (paso 5)
