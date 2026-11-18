@@ -41,9 +41,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coronado.centrotareas.model.CargaUi
+import com.coronado.centrotareas.model.ComparacionUi
+import com.coronado.centrotareas.model.ItemComparacion
 import com.coronado.centrotareas.model.PrimosUi
 import com.coronado.centrotareas.model.ResultadoHistorial
+import com.coronado.centrotareas.model.SesionComparacion
 import com.coronado.centrotareas.viewmodel.TareasViewModel
+import java.util.Locale
 
 // Valor por defecto del cálculo de primos. Ajústalo si en tu emulador tarda menos de 2 s o más de 5 s.
 private const val N_POR_DEFECTO = "500000"
@@ -60,6 +64,7 @@ fun PantallaTareas(vm: TareasViewModel) {
     val carga by vm.carga.collectAsState()
     val simularError by vm.simularError.collectAsState()
     val historial by vm.historial.collectAsState()
+    val comparacion by vm.comparacion.collectAsState()
 
     Scaffold(topBar = { Barra() }) { padding ->
         Column(
@@ -161,6 +166,11 @@ fun PantallaTareas(vm: TareasViewModel) {
                     }
                 }
             }
+            SeccionComparacion(
+                comparacion = comparacion,
+                onCompararCargas = { vm.compararCargas() },
+                onCompararPrimosVsCarga = { vm.compararPrimosVsCarga() }
+            )
             Tarjeta("Historial de resultados (últimos 5)") {
                 if (historial.isEmpty()) {
                     Text(
@@ -180,6 +190,183 @@ fun PantallaTareas(vm: TareasViewModel) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SeccionComparacion(
+    comparacion: ComparacionUi,
+    onCompararCargas: () -> Unit,
+    onCompararPrimosVsCarga: () -> Unit
+) {
+    Tarjeta("Comparación de tiempos") {
+        val ejecutando = comparacion is ComparacionUi.Ejecutando
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = onCompararCargas,
+                enabled = !ejecutando,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Comparar Cargas", fontSize = 12.sp)
+            }
+            OutlinedButton(
+                onClick = onCompararPrimosVsCarga,
+                enabled = !ejecutando,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Primos vs Carga", fontSize = 12.sp)
+            }
+        }
+
+        when (comparacion) {
+            ComparacionUi.Inicial -> {
+                Text(
+                    "Selecciona una opción arriba para medir y comparar el tiempo de ejecución secuencialmente.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            is ComparacionUi.Ejecutando -> {
+                CircularProgressIndicator()
+                Text(
+                    comparacion.pasoActual,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            is ComparacionUi.Completado -> {
+                TablaComparacion(comparacion.sesionActual)
+            }
+            is ComparacionUi.Error -> {
+                Recuadro(
+                    MaterialTheme.colorScheme.errorContainer,
+                    MaterialTheme.colorScheme.onErrorContainer
+                ) {
+                    Text(comparacion.mensaje)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TablaComparacion(sesion: SesionComparacion) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                sesion.titulo,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                sesion.fechaHora,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        // Encabezado de la tabla
+        Surface(
+            shape = MaterialTheme.shapes.extraSmall,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "Operación",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    modifier = Modifier.weight(1.6f)
+                )
+                Text(
+                    "Tiempo",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    modifier = Modifier.weight(1.2f)
+                )
+                Text(
+                    "Diferencia",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    modifier = Modifier.weight(1.4f)
+                )
+            }
+        }
+
+        // Filas de la tabla
+        sesion.items.forEach { item ->
+            FilaTabla(item)
+        }
+
+        // Resumen
+        Aviso(sesion.resumen)
+    }
+}
+
+@Composable
+private fun FilaTabla(item: ItemComparacion) {
+    val fondoFila = if (item.esMasRapido) {
+        VerdeFondo
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    }
+    val textoFilaColor = if (item.esMasRapido) VerdeTexto else MaterialTheme.colorScheme.onSurface
+
+    Surface(
+        shape = MaterialTheme.shapes.extraSmall,
+        color = fondoFila,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                item.nombreOperacion,
+                fontSize = 11.sp,
+                fontWeight = if (item.esMasRapido) FontWeight.Bold else FontWeight.Normal,
+                color = textoFilaColor,
+                modifier = Modifier.weight(1.6f)
+            )
+            Text(
+                String.format(Locale.getDefault(), "%.2f ms", item.tiempoMs),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = textoFilaColor,
+                modifier = Modifier.weight(1.2f)
+            )
+            val textoDif = if (item.esMasRapido) {
+                "Más rápida (0 ms)"
+            } else {
+                String.format(Locale.getDefault(), "+%.2f ms", item.diferenciaMs)
+            }
+            Text(
+                textoDif,
+                fontSize = 11.sp,
+                color = if (item.esMasRapido) VerdeTexto else MaterialTheme.colorScheme.error,
+                fontWeight = if (item.esMasRapido) FontWeight.Bold else FontWeight.Normal,
+                modifier = Modifier.weight(1.4f)
+            )
         }
     }
 }

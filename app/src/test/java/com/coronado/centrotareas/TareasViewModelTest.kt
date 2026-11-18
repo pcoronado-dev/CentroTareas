@@ -1,6 +1,7 @@
 package com.coronado.centrotareas
 
 import com.coronado.centrotareas.data.TareasRepository
+import com.coronado.centrotareas.model.ComparacionUi
 import com.coronado.centrotareas.model.PrimosUi
 import com.coronado.centrotareas.model.ResultadoHistorial
 import com.coronado.centrotareas.viewmodel.TareasViewModel
@@ -108,5 +109,24 @@ class TareasViewModelTest {
 
         // El historial solo debe conservar los 5 más recientes
         assertEquals(5, vm.historial.value.size)
+    }
+
+    @Test
+    fun compararCargas_ejecutaSecuencialmenteYGeneraTablaResultados() = runBlocking {
+        val repo = FakeTareasRepository()
+        val vm = TareasViewModel(repo)
+
+        assertEquals(ComparacionUi.Inicial, vm.comparacion.value)
+
+        vm.compararCargas()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val estadoFinal = vm.comparacion.value
+        assertTrue(estadoFinal is ComparacionUi.Completado)
+
+        val completado = estadoFinal as ComparacionUi.Completado
+        assertEquals(2, completado.sesionActual.items.size)
+        assertEquals("Carga Una por Una", completado.sesionActual.items[0].nombreOperacion)
+        assertEquals("Carga A la Vez", completado.sesionActual.items[1].nombreOperacion)
     }
 }

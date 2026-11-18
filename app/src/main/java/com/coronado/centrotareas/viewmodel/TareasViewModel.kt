@@ -5,8 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.coronado.centrotareas.data.TareasRepository
 import com.coronado.centrotareas.model.CargaUi
+import com.coronado.centrotareas.model.ComparacionUi
+import com.coronado.centrotareas.model.ItemComparacion
 import com.coronado.centrotareas.model.PrimosUi
 import com.coronado.centrotareas.model.ResultadoHistorial
+import com.coronado.centrotareas.model.SesionComparacion
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,6 +35,150 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
         started = SharingStarted.Eagerly,
         initialValue = emptyList()
     )
+
+    // ----- Comparación de tiempos
+    private val _comparacion = MutableStateFlow<ComparacionUi>(ComparacionUi.Inicial)
+    val comparacion: StateFlow<ComparacionUi> = _comparacion.asStateFlow()
+    private val _acumuladosComparacion = mutableListOf<SesionComparacion>()
+
+    fun compararCargas() {
+        if (_comparacion.value is ComparacionUi.Ejecutando) return
+        viewModelScope.launch {
+            try {
+                _comparacion.value = ComparacionUi.Ejecutando("Ejecutando (1/2): Carga Una por Una...")
+
+                // Medición de Operación 1: Carga Una por Una (secuencial)
+                val t1Start = System.nanoTime()
+                repo.cargarPerfil()
+                repo.cargarPedidos(_simularError.value)
+                val t1End = System.nanoTime()
+                val tiempo1Ms = (t1End - t1Start) / 1_000_000.0
+
+                _comparacion.value = ComparacionUi.Ejecutando("Ejecutando (2/2): Carga A la Vez...")
+
+                // Medición de Operación 2: Carga A la Vez (concurrente)
+                val t2Start = System.nanoTime()
+                coroutineScope {
+                    val a = async { repo.cargarPerfil() }
+                    val b = async { repo.cargarPedidos(_simularError.value) }
+                    a.await()
+                    b.await()
+                }
+                val t2End = System.nanoTime()
+                val tiempo2Ms = (t2End - t2Start) / 1_000_000.0
+
+                val dif1 = tiempo1Ms - tiempo2Ms
+                val dif2 = tiempo2Ms - tiempo1Ms
+
+                val items = listOf(
+                    ItemComparacion(
+                        nombreOperacion = "Carga Una por Una",
+                        tiempoMs = tiempo1Ms,
+                        diferenciaMs = dif1,
+                        esMasRapido = tiempo1Ms < tiempo2Ms
+                    ),
+                    ItemComparacion(
+                        nombreOperacion = "Carga A la Vez",
+                        tiempoMs = tiempo2Ms,
+                        diferenciaMs = dif2,
+                        esMasRapido = tiempo2Ms < tiempo1Ms
+                    )
+                )
+
+                val diferenciaAbs = kotlin.math.abs(tiempo1Ms - tiempo2Ms)
+                val masRapida = if (tiempo2Ms < tiempo1Ms) "Carga A la Vez" else "Carga Una por Una"
+                val resumen = String.format(Locale.getDefault(), "«%s» fue %.2f ms más rápida", masRapida, diferenciaAbs)
+
+                val fechaHora = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date())
+                val sesion = SesionComparacion(
+                    titulo = "Comparación: Cargas de datos",
+                    fechaHora = fechaHora,
+                    items = items,
+                    resumen = resumen
+                )
+
+                _acumuladosComparacion.add(0, sesion)
+                _comparacion.value = ComparacionUi.Completado(
+                    sesionActual = sesion,
+                    acumulados = _acumuladosComparacion.toList()
+                )
+            } catch (e: CancellationException) {
+                _comparacion.value = ComparacionUi.Inicial
+                throw e
+            } catch (e: Exception) {
+                _comparacion.value = ComparacionUi.Error("Error en comparación: ${e.message}")
+            }
+        }
+    }
+
+    fun compararPrimosVsCarga() {
+        if (_comparacion.value is ComparacionUi.Ejecutando) return
+        viewModelScope.launch {
+            try {
+                _comparacion.value = ComparacionUi.Ejecutando("Ejecutando (1/2): Conteo de Primos (N=300,000)...")
+
+                // Medición de Operación 1: Primos
+                val t1Start = System.nanoTime()
+                repo.contarPrimos(300000)
+                val t1End = System.nanoTime()
+                val tiempo1Ms = (t1End - t1Start) / 1_000_000.0
+
+                _comparacion.value = ComparacionUi.Ejecutando("Ejecutando (2/2): Carga A la Vez...")
+
+                // Medición de Operación 2: Carga A la Vez
+                val t2Start = System.nanoTime()
+                coroutineScope {
+                    val a = async { repo.cargarPerfil() }
+                    val b = async { repo.cargarPedidos(_simularError.value) }
+                    a.await()
+                    b.await()
+                }
+                val t2End = System.nanoTime()
+                val tiempo2Ms = (t2End - t2Start) / 1_000_000.0
+
+                val dif1 = tiempo1Ms - tiempo2Ms
+                val dif2 = tiempo2Ms - tiempo1Ms
+
+                val items = listOf(
+                    ItemComparacion(
+                        nombreOperacion = "Conteo Primos (300k)",
+                        tiempoMs = tiempo1Ms,
+                        diferenciaMs = dif1,
+                        esMasRapido = tiempo1Ms < tiempo2Ms
+                    ),
+                    ItemComparacion(
+                        nombreOperacion = "Carga A la Vez",
+                        tiempoMs = tiempo2Ms,
+                        diferenciaMs = dif2,
+                        esMasRapido = tiempo2Ms < tiempo1Ms
+                    )
+                )
+
+                val diferenciaAbs = kotlin.math.abs(tiempo1Ms - tiempo2Ms)
+                val masRapida = if (tiempo2Ms < tiempo1Ms) "Carga A la Vez" else "Conteo Primos (300k)"
+                val resumen = String.format(Locale.getDefault(), "«%s» fue %.2f ms más rápida", masRapida, diferenciaAbs)
+
+                val fechaHora = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date())
+                val sesion = SesionComparacion(
+                    titulo = "Comparación: Primos vs Carga",
+                    fechaHora = fechaHora,
+                    items = items,
+                    resumen = resumen
+                )
+
+                _acumuladosComparacion.add(0, sesion)
+                _comparacion.value = ComparacionUi.Completado(
+                    sesionActual = sesion,
+                    acumulados = _acumuladosComparacion.toList()
+                )
+            } catch (e: CancellationException) {
+                _comparacion.value = ComparacionUi.Inicial
+                throw e
+            } catch (e: Exception) {
+                _comparacion.value = ComparacionUi.Error("Error en comparación: ${e.message}")
+            }
+        }
+    }
 
     // ----- Tarea con progreso (pasos 1 a 4)
     private val _mensaje = MutableStateFlow("Listo")
