@@ -58,6 +58,7 @@ fun PantallaTareas(vm: TareasViewModel) {
     val primos by vm.primos.collectAsState()
     var texto by rememberSaveable { mutableStateOf(N_POR_DEFECTO) }
     var ultimoN by rememberSaveable { mutableIntStateOf(0) }
+    val carga by vm.carga.collectAsState()
     Scaffold(topBar = { Barra() }) { padding ->
         Column(
             modifier = Modifier
@@ -116,6 +117,27 @@ fun PantallaTareas(vm: TareasViewModel) {
                         Text("Tiempo: ${e.milisegundos} ms")
                     }
                     PrimosUi.Cancelado -> Text("Cancelado")
+                }
+            }
+            Tarjeta("Dos cargas") {
+                val cargando = carga is CargaUi.Cargando
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { vm.cargarUnaPorUna() }, enabled = !cargando) { Text("Una por una") }
+                    Button(onClick = { vm.cargarALaVez() }, enabled = !cargando) { Text("A la vez") }
+                }
+                when (val e = carga) {
+                    CargaUi.Inicial -> {}
+                    CargaUi.Cargando -> CircularProgressIndicator()
+                    is CargaUi.Exito -> {
+                        Recuadro(VerdeFondo, VerdeTexto) {
+                            Text("Modo: ${e.modo}", fontWeight = FontWeight.Bold)
+                            Text("Perfil: ${e.perfil}")
+                            Text("Pedidos: ${e.pedidos}")
+                            Text("Tiempo: ${e.milisegundos} ms")
+                        }
+                        Aviso("«Una por una» tarda ≈ 5000 ms")
+                    }
+                    is CargaUi.Error -> {}
                 }
             }
         }
