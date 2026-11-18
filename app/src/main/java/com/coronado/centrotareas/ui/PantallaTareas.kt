@@ -3,7 +3,6 @@ package com.coronado.centrotareas.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -54,6 +53,7 @@ private const val N_POR_DEFECTO = "500000"
 fun PantallaTareas(vm: TareasViewModel) {
     val mensaje by vm.mensaje.collectAsState()
     var toques by rememberSaveable { mutableIntStateOf(0) }
+    val progreso by vm.progreso.collectAsState()
     Scaffold(topBar = { Barra() }) { padding ->
         Column(
             modifier = Modifier
@@ -63,15 +63,12 @@ fun PantallaTareas(vm: TareasViewModel) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Tarjeta("Tarea larga") {
+            Tarjeta("Tarea con progreso") {
                 Button(onClick = { toques++ }) { Text("Tócame: $toques") }
-                Button(onClick = { vm.tareaLarga() }) { Text("Tarea larga") }
+                Button(onClick = { vm.tareaLarga() }) { Text("Iniciar") }
+                LinearProgressIndicator(progress = { progreso }, modifier = Modifier.fillMaxWidth())
+                Text("${(progreso * 100).toInt()} %")
                 Text(mensaje)
-            }
-            if (mensaje == "Trabajando...") {
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Aviso("Los toques siguen sumando mientras trabaja")
-                }
             }
         }
     }
