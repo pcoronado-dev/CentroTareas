@@ -1,4 +1,4 @@
-package com.coronado.centrotareas.ui.viewmodel
+package com.coronado.centrotareas.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -65,8 +65,26 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
     // ----- Contar primos (paso 5)
     private val _primos = MutableStateFlow<PrimosUi>(PrimosUi.Inicial)
     val primos: StateFlow<PrimosUi> = _primos.asStateFlow()
+    private var primosJob: Job? = null
 
-    // TODO Paso 5: fun contar(hasta: Int) y fun cancelarPrimos()
+    fun contar(hasta: Int) {
+        if (_primos.value == PrimosUi.Calculando) return
+        primosJob = viewModelScope.launch {
+            _primos.value = PrimosUi.Calculando
+            val inicio = System.currentTimeMillis()
+            try {
+                val cantidad = repo.contarPrimos(hasta)
+                _primos.value = PrimosUi.Listo(cantidad, System.currentTimeMillis() - inicio)
+            } catch (e: CancellationException) {
+                _primos.value = PrimosUi.Cancelado
+                throw e // nunca tragarse la cancelación
+            }
+        }
+    }
+
+    fun cancelarPrimos() {
+        primosJob?.cancel()
+    }
 
     // ----- Dos cargas (pasos 6 y 7)
     private val _carga = MutableStateFlow<CargaUi>(CargaUi.Inicial)

@@ -55,6 +55,9 @@ fun PantallaTareas(vm: TareasViewModel) {
     var toques by rememberSaveable { mutableIntStateOf(0) }
     val progreso by vm.progreso.collectAsState()
     val corriendo by vm.corriendo.collectAsState()
+    val primos by vm.primos.collectAsState()
+    var texto by rememberSaveable { mutableStateOf(N_POR_DEFECTO) }
+    var ultimoN by rememberSaveable { mutableIntStateOf(0) }
     Scaffold(topBar = { Barra() }) { padding ->
         Column(
             modifier = Modifier
@@ -73,6 +76,47 @@ fun PantallaTareas(vm: TareasViewModel) {
                 LinearProgressIndicator(progress = { progreso }, modifier = Modifier.fillMaxWidth())
                 Text("${(progreso * 100).toInt()} %")
                 Text(mensaje)
+            }
+            Tarjeta("Contar números primos") {
+                val n = texto.toIntOrNull()
+                val valido = n != null && n >= 2
+                val calculando = primos is PrimosUi.Calculando
+                OutlinedTextField(
+                    value = texto,
+                    onValueChange = { nuevo ->
+                        // solo dígitos: ignora textos no numéricos
+                        if (nuevo.all { it.isDigit() } && nuevo.length <= 9) texto = nuevo
+                    },
+                    label = { Text("Hasta el número") },
+                    singleLine = true,
+                    enabled = !calculando,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            if (n != null && n >= 2) {
+                                ultimoN = n
+                                vm.contar(n)
+                            }
+                        },
+                        enabled = valido && !calculando
+                    ) { Text("Contar") }
+                    OutlinedButton(onClick = { vm.cancelarPrimos() }, enabled = calculando) { Text("Cancelar") }
+                }
+                when (val e = primos) {
+                    PrimosUi.Inicial -> {}
+                    PrimosUi.Calculando -> {
+                        CircularProgressIndicator()
+                        Text("Calculando...")
+                    }
+                    is PrimosUi.Listo -> Recuadro(VerdeFondo, VerdeTexto) {
+                        Text("Primos hasta $ultimoN: ${e.cantidad}", fontWeight = FontWeight.Bold)
+                        Text("Tiempo: ${e.milisegundos} ms")
+                    }
+                    PrimosUi.Cancelado -> Text("Cancelado")
+                }
             }
         }
     }
