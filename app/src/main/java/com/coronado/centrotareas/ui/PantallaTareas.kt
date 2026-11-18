@@ -109,15 +109,24 @@ fun PantallaTareas(vm: TareasViewModel) {
                 }
                 when (val e = primos) {
                     PrimosUi.Inicial -> {}
-                    PrimosUi.Calculando -> {
-                        CircularProgressIndicator()
-                        Text("Calculando...")
+                    is PrimosUi.Calculando -> {
+                        LinearProgressIndicator(
+                            progress = { e.progreso },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text("${(e.progreso * 100).toInt()} %")
                     }
                     is PrimosUi.Listo -> Recuadro(VerdeFondo, VerdeTexto) {
                         Text("Primos hasta $ultimoN: ${e.cantidad}", fontWeight = FontWeight.Bold)
                         Text("Tiempo: ${e.milisegundos} ms")
                     }
                     PrimosUi.Cancelado -> Text("Cancelado")
+                    is PrimosUi.Error -> Recuadro(
+                        MaterialTheme.colorScheme.errorContainer,
+                        MaterialTheme.colorScheme.onErrorContainer
+                    ) {
+                        Text(e.mensaje)
+                    }
                 }
             }
             Tarjeta("Dos cargas") {

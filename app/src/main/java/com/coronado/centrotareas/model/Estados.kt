@@ -2,9 +2,10 @@ package com.coronado.centrotareas.model
 
 sealed interface PrimosUi {
     data object Inicial : PrimosUi
-    data object Calculando : PrimosUi
+    data class Calculando(val progreso: Float = 0f) : PrimosUi
     data class Listo(val cantidad: Int, val milisegundos: Long) : PrimosUi
     data object Cancelado : PrimosUi
+    data class Error(val mensaje: String) : PrimosUi
 }
 
 sealed interface CargaUi {

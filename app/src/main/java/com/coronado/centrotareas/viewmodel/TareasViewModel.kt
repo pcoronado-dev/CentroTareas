@@ -68,16 +68,23 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
     private var primosJob: Job? = null
 
     fun contar(hasta: Int) {
-        if (_primos.value == PrimosUi.Calculando) return
+        if (_primos.value is PrimosUi.Calculando) return
         primosJob = viewModelScope.launch {
-            _primos.value = PrimosUi.Calculando
+            _primos.value = PrimosUi.Calculando(0f)
             val inicio = System.currentTimeMillis()
             try {
-                val cantidad = repo.contarPrimos(hasta)
+                if (hasta < 2) {
+                    throw IllegalArgumentException("El número debe ser mayor o igual a 2")
+                }
+                val cantidad = repo.contarPrimos(hasta) { progreso ->
+                    _primos.value = PrimosUi.Calculando(progreso)
+                }
                 _primos.value = PrimosUi.Listo(cantidad, System.currentTimeMillis() - inicio)
             } catch (e: CancellationException) {
                 _primos.value = PrimosUi.Cancelado
                 throw e // nunca tragarse la cancelación
+            } catch (e: Exception) {
+                _primos.value = PrimosUi.Error(e.message ?: "Error al calcular primos")
             }
         }
     }

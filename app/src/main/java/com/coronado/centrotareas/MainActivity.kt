@@ -3,45 +3,23 @@ package com.coronado.centrotareas
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.coronado.centrotareas.ui.theme.CentrotareasTheme
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.coronado.centrotareas.data.TareasRepositoryLocal
+import com.coronado.centrotareas.ui.PantallaTareas
+import com.coronado.centrotareas.ui.theme.CentroTareasTheme
+import com.coronado.centrotareas.viewmodel.TareasViewModel
+import com.coronado.centrotareas.viewmodel.TareasViewModelFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
-            CentrotareasTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+            CentroTareasTheme {
+                val vm: TareasViewModel = viewModel(
+                    factory = TareasViewModelFactory(TareasRepositoryLocal())
+                )
+                PantallaTareas(vm)
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    CentrotareasTheme {
-        Greeting("Android")
     }
 }

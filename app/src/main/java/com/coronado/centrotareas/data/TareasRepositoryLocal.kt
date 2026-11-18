@@ -20,11 +20,22 @@ class TareasRepositoryLocal : TareasRepository {
     }
 
     // Cálculo pesado: corre en Dispatchers.Default y se puede cancelar a mitad.
-    override suspend fun contarPrimos(hasta: Int): Int = withContext(Dispatchers.Default) {
+    override suspend fun contarPrimos(hasta: Int, onProgress: (Float) -> Unit): Int = withContext(Dispatchers.Default) {
+        if (hasta < 2) return@withContext 0
         var cantidad = 0
+        val total = hasta - 1
+        val step = maxOf(1, total / 200)
+
+        onProgress(0f)
         for (n in 2..hasta) {
             ensureActive() // permite cancelar dentro del ciclo
             if (esPrimo(n)) cantidad++
+
+            val processed = n - 1
+            if (processed % step == 0 || n == hasta) {
+                val progreso = processed.toFloat() / total
+                onProgress(progreso)
+            }
         }
         cantidad
     }
