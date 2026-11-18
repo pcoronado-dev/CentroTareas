@@ -2,7 +2,6 @@ package com.coronado.centrotareas.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -39,11 +38,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coronado.centrotareas.model.CargaUi
 import com.coronado.centrotareas.model.PrimosUi
+import com.coronado.centrotareas.model.ResultadoHistorial
 import com.coronado.centrotareas.viewmodel.TareasViewModel
 
 // Valor por defecto del cálculo de primos. Ajústalo si en tu emulador tarda menos de 2 s o más de 5 s.
@@ -60,6 +59,8 @@ fun PantallaTareas(vm: TareasViewModel) {
     var ultimoN by rememberSaveable { mutableIntStateOf(0) }
     val carga by vm.carga.collectAsState()
     val simularError by vm.simularError.collectAsState()
+    val historial by vm.historial.collectAsState()
+
     Scaffold(topBar = { Barra() }) { padding ->
         Column(
             modifier = Modifier
@@ -160,6 +161,87 @@ fun PantallaTareas(vm: TareasViewModel) {
                     }
                 }
             }
+            Tarjeta("Historial de resultados (últimos 5)") {
+                if (historial.isEmpty()) {
+                    Text(
+                        "No hay resultados en el historial.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        historial.forEach { item ->
+                            ElementoHistorial(item)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ElementoHistorial(item: ResultadoHistorial) {
+    val (colorEtiqueta, textoEtiqueta) = if (item.tipo == "Primos") {
+        Pair(Color(0xFF00695C), "PRIMOS")
+    } else {
+        Pair(Color(0xFF1565C0), "CARGAS")
+    }
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = MaterialTheme.shapes.extraSmall,
+                    color = colorEtiqueta,
+                    contentColor = Color.White
+                ) {
+                    Text(
+                        textoEtiqueta,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+                Text(
+                    item.fechaHora,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                item.titulo,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                item.detalle,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "Tiempo: ${item.milisegundos} ms",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -238,4 +320,3 @@ private fun Aviso(texto: String) {
 
 private val VerdeFondo = Color(0xFFE3F4E6)
 private val VerdeTexto = Color(0xFF1B5E20)
-

@@ -1,12 +1,45 @@
 package com.coronado.centrotareas.data
 
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import com.coronado.centrotareas.model.ResultadoHistorial
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.IOException
+import java.util.UUID
 
-class TareasRepositoryLocal : TareasRepository {
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "centro_tareas_prefs")
+private val HISTORIAL_KEY = stringPreferencesKey("historial_resultados")
+
+class TareasRepositoryLocal(private val context: Context? = null) : TareasRepository {
+
+    override val historial: Flow<List<ResultadoHistorial>> =
+        context?.dataStore?.data?.map { prefs ->
+            val jsonString = prefs[HISTORIAL_KEY] ?: ""
+            deserializarHistorial(jsonString)
+        } ?: flowOf(emptyList())
+
+    override suspend fun guardarResultado(resultado: ResultadoHistorial) {
+        val dataStore = context?.dataStore ?: return
+        dataStore.edit { prefs ->
+            val jsonString = prefs[HISTORIAL_KEY] ?: ""
+            val listaActual = deserializarHistorial(jsonString).toMutableList()
+            listaActual.add(0, resultado)
+            val listaReciente = listaActual.take(5)
+            prefs[HISTORIAL_KEY] = serializarHistorial(listaReciente)
+        }
+    }
 
     override suspend fun cargarPerfil(): String {
         delay(2000)
@@ -48,5 +81,45 @@ class TareasRepositoryLocal : TareasRepository {
             d++
         }
         return true
+    }
+
+    private fun serializarHistorial(lista: List<ResultadoHistorial>): String {
+        val jsonArray = JSONArray()
+        lista.forEach { item ->
+            val obj = JSONObject().apply {
+                put("id", item.id)
+                put("tipo", item.tipo)
+                put("titulo", item.titulo)
+                put("detalle", item.detalle)
+                put("milisegundos", item.milisegundos)
+                put("fechaHora", item.fechaHora)
+            }
+            jsonArray.put(obj)
+        }
+        return jsonArray.toString()
+    }
+
+    private fun deserializarHistorial(jsonString: String): List<ResultadoHistorial> {
+        if (jsonString.isBlank()) return emptyList()
+        val list = mutableListOf<ResultadoHistorial>()
+        try {
+            val jsonArray = JSONArray(jsonString)
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                list.add(
+                    ResultadoHistorial(
+                        id = obj.optString("id", UUID.randomUUID().toString()),
+                        tipo = obj.optString("tipo", ""),
+                        titulo = obj.optString("titulo", ""),
+                        detalle = obj.optString("detalle", ""),
+                        milisegundos = obj.optLong("milisegundos", 0L),
+                        fechaHora = obj.optString("fechaHora", "")
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return list
     }
 }

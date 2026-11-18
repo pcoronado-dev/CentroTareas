@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.coronado.centrotareas.data.TareasRepository
 import com.coronado.centrotareas.model.CargaUi
 import com.coronado.centrotareas.model.PrimosUi
+import com.coronado.centrotareas.model.ResultadoHistorial
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -13,12 +14,24 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
+
+    // ----- Historial de resultados
+    val historial: StateFlow<List<ResultadoHistorial>> = repo.historial.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = emptyList()
+    )
 
     // ----- Tarea con progreso (pasos 1 a 4)
     private val _mensaje = MutableStateFlow("Listo")
@@ -79,7 +92,18 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
                 val cantidad = repo.contarPrimos(hasta) { progreso ->
                     _primos.value = PrimosUi.Calculando(progreso)
                 }
-                _primos.value = PrimosUi.Listo(cantidad, System.currentTimeMillis() - inicio)
+                val ms = System.currentTimeMillis() - inicio
+                _primos.value = PrimosUi.Listo(cantidad, ms)
+
+                val fechaHora = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date())
+                val resultado = ResultadoHistorial(
+                    tipo = "Primos",
+                    titulo = "Conteo de Primos",
+                    detalle = "Primos hasta $hasta: $cantidad",
+                    milisegundos = ms,
+                    fechaHora = fechaHora
+                )
+                repo.guardarResultado(resultado)
             } catch (e: CancellationException) {
                 _primos.value = PrimosUi.Cancelado
                 throw e // nunca tragarse la cancelación
@@ -116,6 +140,16 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
                 val pedidos = repo.cargarPedidos(_simularError.value)
                 val ms = System.currentTimeMillis() - inicio
                 _carga.value = CargaUi.Exito("Una por una", perfil, pedidos.size, ms)
+
+                val fechaHora = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date())
+                val resultado = ResultadoHistorial(
+                    tipo = "Cargas",
+                    titulo = "Carga de Datos (Una por una)",
+                    detalle = "Perfil: $perfil | Pedidos: ${pedidos.size}",
+                    milisegundos = ms,
+                    fechaHora = fechaHora
+                )
+                repo.guardarResultado(resultado)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 _carga.value = CargaUi.Error("No se pudo cargar: " + e.message)
@@ -137,6 +171,16 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
                 }
                 val ms = System.currentTimeMillis() - inicio
                 _carga.value = CargaUi.Exito("A la vez", perfil, pedidos.size, ms)
+
+                val fechaHora = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date())
+                val resultado = ResultadoHistorial(
+                    tipo = "Cargas",
+                    titulo = "Carga de Datos (A la vez)",
+                    detalle = "Perfil: $perfil | Pedidos: ${pedidos.size}",
+                    milisegundos = ms,
+                    fechaHora = fechaHora
+                )
+                repo.guardarResultado(resultado)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 _carga.value = CargaUi.Error("No se pudo cargar: " + e.message)
